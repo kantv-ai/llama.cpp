@@ -129,15 +129,26 @@ function build_ggml_qnn()
 }
 
 
-function run_llamacli()
+function prepare_run_on_phone()
 {
+    if [ $# != 1 ]; then
+        print "invalid param"
+        return
+    fi
+    program=$1
+
     check_qnn_libs
 
     if [ -f ./out/android/bin/libggml-qnn.so ]; then
         adb push ./out/android/bin/*.so ${REMOTE_PATH}/
     fi
-    adb push ./out/android/bin/llama-cli ${REMOTE_PATH}/
-    adb shell chmod +x ${REMOTE_PATH}/llama-cli
+    adb push ./out/android/bin/${program} ${REMOTE_PATH}/
+    adb shell chmod +x ${REMOTE_PATH}/${program}
+}
+
+function run_llamacli()
+{
+    prepare_run_on_phone llama-cli
 
     adb shell "cd ${REMOTE_PATH} \
                && export LD_LIBRARY_PATH=${REMOTE_PATH} \
@@ -148,13 +159,7 @@ function run_llamacli()
 
 function run_llamabench()
 {
-    check_qnn_libs
-
-    if [ -f ./out/android/bin/libggml-qnn.so ]; then
-        adb push ./out/android/bin/*.so ${REMOTE_PATH}/
-    fi
-    adb push ./out/android/bin/llama-bench ${REMOTE_PATH}/
-    adb shell chmod +x ${REMOTE_PATH}/llama-bench
+    prepare_run_on_phone llama-bench
 
     adb shell "cd ${REMOTE_PATH} \
                && export LD_LIBRARY_PATH=${REMOTE_PATH} \
@@ -165,17 +170,41 @@ function run_llamabench()
 
 function run_test-backend-ops()
 {
-    check_qnn_libs
-
-    if [ -f ./out/android/bin/libggml-qnn.so ]; then
-        adb push ./out/android/bin/*.so ${REMOTE_PATH}/
-    fi
-    adb push ./out/android/bin/test-backend-ops ${REMOTE_PATH}/
-    adb shell chmod +x ${REMOTE_PATH}/test-backend-ops
+    prepare_run_on_phone test-backend-ops
 
     adb shell "cd ${REMOTE_PATH} \
                && export LD_LIBRARY_PATH=${REMOTE_PATH} \
                && ${REMOTE_PATH}/test-backend-ops test"
+
+}
+
+function run_ut_add()
+{
+    prepare_run_on_phone ggml-qnn-ut
+
+    adb shell "cd ${REMOTE_PATH} \
+               && export LD_LIBRARY_PATH=${REMOTE_PATH} \
+               && ${REMOTE_PATH}/ggml-qnn-ut -t GGML_OP_ADD -b $qnnbackend"
+
+}
+
+function run_ut_mulmat()
+{
+    prepare_run_on_phone ggml-qnn-ut
+
+    adb shell "cd ${REMOTE_PATH} \
+               && export LD_LIBRARY_PATH=${REMOTE_PATH} \
+               && ${REMOTE_PATH}/ggml-qnn-ut -t GGML_OP_MUL_MAT -b $qnnbackend"
+
+}
+
+function run_ut_mul()
+{
+    prepare_run_on_phone ggml-qnn-ut
+
+    adb shell "cd ${REMOTE_PATH} \
+               && export LD_LIBRARY_PATH=${REMOTE_PATH} \
+               && ${REMOTE_PATH}/ggml-qnn-ut -t GGML_OP_MUL -b $qnnbackend"
 
 }
 
@@ -186,6 +215,9 @@ function show_usage()
     echo "  $0 build"
     echo "  $0 updateqnnlib"
     echo "  $0 run_testop"
+    echo "  $0 run_ut_add       0 (QNN_CPU) / 1 (QNN_GPU) / 2 (QNN_NPU) / 3 (ggml)"
+    echo "  $0 run_ut_mulmat    0 (QNN_CPU) / 1 (QNN_GPU) / 2 (QNN_NPU) / 3 (ggml)"
+    echo "  $0 run_ut_mul       0 (QNN_CPU) / 1 (QNN_GPU) / 2 (QNN_NPU) / 3 (ggml)"
     echo "  $0 run_llamacli     0 (QNN_CPU) / 1 (QNN_GPU) / 2 (QNN_NPU) / 3 (ggml)"
     echo "  $0 run_llamabench   0 (QNN_CPU) / 1 (QNN_GPU) / 2 (QNN_NPU) / 3 (ggml)"
     echo -e "\n\n\n"
@@ -213,6 +245,7 @@ elif [ $# == 1 ]; then
     elif [ "$1" == "run_testop" ]; then
         run_test-backend-ops
         exit 0
+
     elif [ "$1" == "updateqnnlib" ]; then
         update_qnn_libs
         exit 0
@@ -232,6 +265,15 @@ elif [ $# == 2 ]; then
         exit 0
     elif [ "$1" == "run_llamabench" ]; then
         run_llamabench
+        exit 0
+    elif [ "$1" == "run_ut_add" ]; then
+        run_ut_add
+        exit 0
+    elif [ "$1" == "run_ut_mulmat" ]; then
+        run_ut_mulmat
+        exit 0
+    elif [ "$1" == "run_ut_mul" ]; then
+        run_ut_mul
         exit 0
     fi
 else
